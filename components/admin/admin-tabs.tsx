@@ -19,7 +19,7 @@ export function AdminTabs({ tabs }: { tabs: { label: string; content: React.Reac
           </button>
         ))}
       </div>
-      {tabs[active].content}
+      {tabs[active]?.content}
     </div>
   );
 }
