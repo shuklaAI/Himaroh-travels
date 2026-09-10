@@ -37,7 +37,7 @@ export function UpcomingDepartures({ pkg }: { pkg: PackageDetail }) {
               <thead className="bg-navy/[0.03] text-xs uppercase tracking-wide text-navy/50">
                 <tr>
                   <th className="px-6 py-4 font-medium">Departure Date</th>
-                  {departures[0].pricing.map((p) => (
+                  {departures[0]?.pricing.map((p) => (
                     <th key={p.sharingType} className="px-6 py-4 font-medium">
                       {SHARING_LABEL[p.sharingType] ?? p.sharingType}
                     </th>
