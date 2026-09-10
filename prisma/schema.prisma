@@ -1,0 +1,521 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =========================================================
+// ENUMS
+// =========================================================
+
+enum AdminRole {
+  SUPER_ADMIN
+  OPERATIONS_ADMIN
+  CONTENT_MANAGER
+}
+
+enum BookingStatus {
+  PENDING
+  PAYMENT_PENDING
+  PARTIALLY_PAID
+  CONFIRMED
+  CANCELLED
+  REFUNDED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  OFFLINE_CASH
+  OFFLINE_BANK_TRANSFER
+  OFFLINE_UPI
+  OTHER
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum AdvanceType {
+  PERCENTAGE
+  FIXED
+}
+
+enum SharingType {
+  SINGLE
+  DOUBLE
+  TRIPLE
+  QUAD
+  CHILD
+}
+
+enum DepartureStatus {
+  OPEN
+  CLOSED
+  SOLD_OUT
+  CANCELLED
+  COMPLETED
+}
+
+enum EnquiryStatus {
+  NEW
+  CONTACTED
+  RESOLVED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+// =========================================================
+// AUTH / ADMIN
+// =========================================================
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         AdminRole @default(OPERATIONS_ADMIN)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  auditLogs   AuditLog[]
+  bookingNotes BookingNote[]
+
+  @@index([email])
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  adminUserId String?
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id])
+  action      String
+  entityType  String
+  entityId    String?
+  previousValue Json?
+  newValue      Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+
+  @@index([entityType, entityId])
+  @@index([adminUserId])
+  @@index([createdAt])
+}
+
+// =========================================================
+// CUSTOMER
+// =========================================================
+
+model Customer {
+  id           String    @id @default(cuid())
+  fullName     String
+  email        String?   @unique
+  phone        String    @unique
+  passwordHash String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  bookings     Booking[]
+  enquiries    Enquiry[]
+
+  @@index([phone])
+  @@index([email])
+}
+
+// =========================================================
+// PACKAGE / CONTENT
+// =========================================================
+
+model Package {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  subtitle      String?
+  region        String?
+  country       String   @default("India")
+  durationNights Int
+  durationDays   Int
+  difficulty    String?
+  altitudeFt    Int?
+  distanceKm    Float?
+  pickupCity    String?
+  pickupPoint   String?
+  overview      String?  @db.Text
+  highlights    String[] @default([])
+  isPublished   Boolean  @default(false)
+  isFeatured    Boolean  @default(false)
+  metaTitle     String?
+  metaDescription String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  images        PackageImage[]
+  itineraryDays ItineraryDay[]
+  inclusions    Inclusion[]
+  exclusions    Exclusion[]
+  departures    Departure[]
+  faqs          FAQ[]
+  testimonials  Testimonial[]
+  accommodations PackageAccommodation[]
+
+  @@index([slug])
+  @@index([isPublished])
+}
+
+model PackageImage {
+  id        String   @id @default(cuid())
+  packageId String
+  package   Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  url       String
+  altText   String?
+  position  Int      @default(0)
+  isCover   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([packageId])
+}
+
+model ItineraryDay {
+  id          String   @id @default(cuid())
+  packageId   String
+  package     Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  dayNumber   Int
+  title       String
+  description String   @db.Text
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([packageId])
+  @@unique([packageId, dayNumber])
+}
+
+model Inclusion {
+  id        String   @id @default(cuid())
+  packageId String
+  package   Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  label     String
+  position  Int      @default(0)
+
+  @@index([packageId])
+}
+
+model Exclusion {
+  id        String   @id @default(cuid())
+  packageId String
+  package   Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  label     String
+  position  Int      @default(0)
+
+  @@index([packageId])
+}
+
+model Accommodation {
+  id             String   @id @default(cuid())
+  name           String
+  category       String
+  description    String?  @db.Text
+  location       String?
+  images         String[] @default([])
+  amenities      String[] @default([])
+  capacity       Int?
+  availableUnits Int?
+  isActive       Boolean  @default(true)
+  priceAdjustment Decimal @default(0) @db.Decimal(10, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  packages       PackageAccommodation[]
+  bookings       Booking[]
+}
+
+model PackageAccommodation {
+  id              String        @id @default(cuid())
+  packageId       String
+  package         Package       @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  accommodationId String
+  accommodation   Accommodation @relation(fields: [accommodationId], references: [id])
+
+  @@unique([packageId, accommodationId])
+}
+
+model FAQ {
+  id        String   @id @default(cuid())
+  packageId String?
+  package   Package? @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  question  String
+  answer    String   @db.Text
+  position  Int      @default(0)
+  isPublished Boolean @default(true)
+
+  @@index([packageId])
+}
+
+model Testimonial {
+  id           String   @id @default(cuid())
+  packageId    String?
+  package      Package? @relation(fields: [packageId], references: [id])
+  customerName String
+  location     String?
+  rating       Int      @default(5)
+  content      String   @db.Text
+  imageUrl     String?
+  isVerified   Boolean  @default(false)
+  isPublished  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([packageId])
+  @@index([isPublished])
+}
+
+model GalleryImage {
+  id        String   @id @default(cuid())
+  url       String
+  altText   String?
+  category  String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+// =========================================================
+// DEPARTURE / INVENTORY / PRICING
+// =========================================================
+
+model Departure {
+  id          String          @id @default(cuid())
+  packageId   String
+  package     Package         @relation(fields: [packageId], references: [id])
+  departureDate DateTime
+  returnDate    DateTime?
+  totalCapacity Int
+  bookedSeats   Int           @default(0)
+  status        DepartureStatus @default(OPEN)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  pricing     Pricing[]
+  bookings    Booking[]
+
+  @@index([packageId])
+  @@index([departureDate])
+  @@index([status])
+}
+
+// availableSeats is derived: totalCapacity - bookedSeats (never stored to avoid drift)
+
+model Pricing {
+  id           String      @id @default(cuid())
+  departureId  String
+  departure    Departure   @relation(fields: [departureId], references: [id], onDelete: Cascade)
+  sharingType  SharingType
+  price        Decimal     @db.Decimal(10, 2)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([departureId, sharingType])
+  @@index([departureId])
+}
+
+model AdvanceConfig {
+  id            String      @id @default(cuid())
+  packageId     String?     @unique
+  advanceType   AdvanceType @default(FIXED)
+  advanceAmount Decimal     @db.Decimal(10, 2)
+  isRefundable  Boolean     @default(false)
+  updatedAt     DateTime    @updatedAt
+}
+
+model Coupon {
+  id                  String       @id @default(cuid())
+  code                String       @unique
+  discountType        DiscountType
+  discountValue       Decimal      @db.Decimal(10, 2)
+  maxDiscountAmount    Decimal?    @db.Decimal(10, 2)
+  minBookingAmount     Decimal?    @db.Decimal(10, 2)
+  startDate           DateTime
+  expiryDate          DateTime
+  usageLimit          Int?
+  perCustomerLimit    Int?         @default(1)
+  isActive            Boolean      @default(true)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  usages              CouponUsage[]
+  bookings            Booking[]
+
+  @@index([code])
+}
+
+model CouponUsage {
+  id          String   @id @default(cuid())
+  couponId    String
+  coupon      Coupon   @relation(fields: [couponId], references: [id])
+  customerId  String?
+  bookingId   String   @unique
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([couponId])
+  @@index([customerId])
+}
+
+// =========================================================
+// BOOKING
+// =========================================================
+
+model Booking {
+  id               String        @id @default(cuid())
+  bookingRef       String        @unique // human friendly e.g. HT-2026-000123
+  customerId       String
+  customer         Customer      @relation(fields: [customerId], references: [id])
+  departureId      String
+  departure        Departure     @relation(fields: [departureId], references: [id])
+  status           BookingStatus @default(PENDING)
+
+  travellerCount   Int
+  pickupPoint      String?
+
+  accommodationId  String?
+  accommodation    Accommodation? @relation(fields: [accommodationId], references: [id])
+
+  basePriceTotal   Decimal       @db.Decimal(10, 2)
+  discountAmount   Decimal       @default(0) @db.Decimal(10, 2)
+  addOnsTotal      Decimal       @default(0) @db.Decimal(10, 2)
+  finalTotal       Decimal       @db.Decimal(10, 2)
+  advanceAmount    Decimal       @db.Decimal(10, 2)
+  balanceAmount    Decimal       @db.Decimal(10, 2)
+  amountPaid       Decimal       @default(0) @db.Decimal(10, 2)
+
+  couponId         String?
+  coupon           Coupon?       @relation(fields: [couponId], references: [id])
+  couponUsage      CouponUsage?
+
+  internalNotes    BookingNote[]
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  cancelledAt      DateTime?
+
+  travellers       BookingTraveller[]
+  payments         Payment[]
+
+  @@index([customerId])
+  @@index([departureId])
+  @@index([status])
+  @@index([bookingRef])
+}
+
+model BookingTraveller {
+  id            String   @id @default(cuid())
+  bookingId     String
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sharingType   SharingType
+  fullName      String
+  phone         String?
+  email         String?
+  dateOfBirth   DateTime?
+  gender        Gender?
+  govtIdType    String?
+  govtIdNumber  String?  // encrypted at application layer before storage
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  medicalNotes  String?  @db.Text
+  specialRequirements String? @db.Text
+  createdAt     DateTime @default(now())
+
+  @@index([bookingId])
+}
+
+model BookingNote {
+  id          String     @id @default(cuid())
+  bookingId   String
+  booking     Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  adminUserId String?
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id])
+  note        String     @db.Text
+  createdAt   DateTime   @default(now())
+
+  @@index([bookingId])
+}
+
+model Payment {
+  id                 String        @id @default(cuid())
+  bookingId          String
+  booking            Booking       @relation(fields: [bookingId], references: [id])
+  method             PaymentMethod @default(RAZORPAY)
+  status             PaymentStatus @default(CREATED)
+  amount             Decimal       @db.Decimal(10, 2)
+  currency           String        @default("INR")
+  razorpayOrderId    String?       @unique
+  razorpayPaymentId  String?       @unique
+  razorpaySignature  String?
+  failureReason      String?
+  recordedByAdminId  String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([bookingId])
+  @@index([razorpayOrderId])
+}
+
+// =========================================================
+// ENQUIRY / SETTINGS
+// =========================================================
+
+model Enquiry {
+  id         String        @id @default(cuid())
+  customerId String?
+  customer   Customer?     @relation(fields: [customerId], references: [id])
+  name       String
+  email      String?
+  phone      String
+  message    String        @db.Text
+  packageInterest String?
+  status     EnquiryStatus @default(NEW)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([status])
+  @@index([phone])
+}
+
+model SiteSetting {
+  id      String @id @default(cuid())
+  key     String @unique
+  value   String @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+// Atomic counter used to generate human-friendly booking references
+// (e.g. HT-2026-000123). A single `UPDATE ... increment` is one atomic SQL
+// statement in Postgres, so concurrent bookings can never receive the same
+// number without needing a separate row lock.
+model SequenceCounter {
+  id    String @id @default(cuid())
+  key   String @unique // e.g. "booking-ref-2026"
+  value Int    @default(0)
+}

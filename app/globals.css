@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight;
+  }
+
+  ::selection {
+    @apply bg-gold/30;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-gold;
+  }
+}
+
+@layer components {
+  /* Skeleton shimmer — used everywhere a loading.tsx or Suspense fallback renders */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-navy/[0.06];
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(10, 10, 10, 0.06),
+      transparent
+    );
+    background-size: 700px 100%;
+    animation: shimmer 1.6s infinite linear;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.2em] text-gold;
+  }
+
+  /* Tripgix-style heading pattern: bold heading + short gold underline bar */
+  .heading-bar {
+    @apply mt-3 h-1.5 w-16 rounded-full bg-gold;
+  }
+  .heading-bar-center {
+    @apply mx-auto mt-3 h-1.5 w-16 rounded-full bg-gold;
+  }
+
+  .section {
+    @apply mx-auto max-w-7xl px-6 py-20 sm:px-8 lg:px-10;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
