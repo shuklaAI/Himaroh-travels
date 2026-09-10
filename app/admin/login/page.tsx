@@ -1,7 +1,10 @@
+import { Suspense } from "react";
 import { LoginForm } from "@/components/admin/login-form";
 
-export const metadata = { title: "Admin Login", robots: { index: false } };
-
 export default function AdminLoginPage() {
-  return <LoginForm />;
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
 }
