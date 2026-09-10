@@ -15,6 +15,9 @@ out/
 *.log
 npm-debug.log*
 
+# TypeScript build info
+tsconfig.tsbuildinfo
+
 # prisma
 prisma/migrations/dev.db
 
